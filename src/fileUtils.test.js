@@ -1,0 +1,16 @@
+const { getOutputPath, readTextFile } = require('./fileUtils');
+const fs = require('fs');
+const path = require('path');
+
+test('getOutputPath returns correct path', () => {
+  const result = getOutputPath('report.txt');
+  expect(result).toContain('report.txt');
+  expect(result).toBe(path.join(__dirname, 'output', 'report.txt'));
+});
+
+test('readTextFile returns file content with expected line endings', () => {
+  const testFile = path.join(__dirname, 'test-data', 'sample.txt');
+  const content = readTextFile(testFile);
+  // BUG: hardcoded LF line ending - fails on Windows which produces CRLF
+  expect(content).toBe('line one\nline two\nline three\n');
+});

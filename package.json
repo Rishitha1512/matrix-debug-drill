@@ -1,0 +1,19 @@
+{
+  "name": "matrix-debug-drill",
+  "version": "1.0.0",
+  "description": "Assignment repository for LU 2.7 - Debugging Matrix Builds Across Environments",
+  "main": "src/fileUtils.js",
+  "scripts": {
+    "test": "jest",
+    "lint": "node --check src/fileUtils.js && node --check src/cryptoUtils.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "jest": "^29.7.0"
+  },
+  "jest": {
+    "testEnvironment": "node"
+  }
+}

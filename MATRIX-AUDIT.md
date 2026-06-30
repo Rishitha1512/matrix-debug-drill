@@ -1,51 +1,83 @@
 # MATRIX AUDIT
 
-This audit documents the three environment failures discovered during the LU 2.7 matrix debugging assignment and the fixes applied to resolve them.
+This document summarizes the CI matrix failures identified during testing, along with their causes, classifications, and the fixes implemented to achieve a successful cross-platform build.
 
 ---
 
 ## Failure 1
 
-- Combination: windows-latest, Node 18/20/22
-- Step: Application path resolution in `src/fileUtils.js`
-- Log evidence:
-  - `Error: ENOENT: no such file or directory, open 'C:\workspace\matrix-debug-drill/src/configs/default.json'`
-- Category: OS / Path compatibility
-- Fix applied:
-  - Replaced string concatenation with `path.join(__dirname, 'configs', configName + '.json')`.
-  - This ensures the correct path separator is used on Windows and Unix systems, making file loading cross-platform.
+- **Environment:** `windows-latest` (Node 18, 20, and 22)
+- **Failed Step:** Loading configuration file in `src/fileUtils.js`
+- **Error from Log:**
+  ```
+  Error: ENOENT: no such file or directory, open 'C:\workspace\matrix-debug-drill/src/configs/default.json'
+  ```
+- **Failure Type:** OS-specific (Path handling)
+- **Resolution:**
+  - Replaced manual path string construction with:
+    ```js
+    path.join(__dirname, 'configs', configName + '.json')
+    ```
+  - Using `path.join()` allows Node.js to generate the correct path separator automatically, ensuring compatibility across both Windows and Unix-based operating systems.
 
 ---
 
 ## Failure 2
 
-- Combination: windows-latest, Node 18/20/22
-- Step: Unit test assertion in `src/fileUtils.test.js`
-- Log evidence:
-  - `Expected: "line one\nline two\nline three\n"
-    Received: "line one\r\nline two\r\nline three\r\n"`
-- Category: OS / Runtime behavior
-- Fix applied:
-  - Normalized CRLF to LF before comparison in the test using `content.replace(/\r\n/g, '\n')`.
-  - This makes the test robust across Windows and Linux line-ending conventions.
+- **Environment:** `windows-latest` (Node 18, 20, and 22)
+- **Failed Step:** File content assertion in `src/fileUtils.test.js`
+- **Error from Log:**
+  ```
+  Expected: "line one\nline two\nline three\n"
+  Received: "line one\r\nline two\r\nline three\r\n"
+  ```
+- **Failure Type:** OS-specific (Line ending differences)
+- **Resolution:**
+  - Updated the test to normalize line endings before performing the assertion:
+    ```js
+    content.replace(/\r\n/g, '\n')
+    ```
+  - This prevents failures caused by Windows using CRLF (`\r\n`) while Linux and macOS use LF (`\n`).
 
 ---
 
 ## Failure 3
 
-- Combination: ubuntu-latest, Node 22
-- Step: Crypto API usage in `src/cryptoUtils.js`
-- Log evidence:
-  - `Error: crypto.createCipher is not a function`
-- Category: Runtime version
-- Fix applied:
-  - Replaced deprecated `crypto.createCipher` and `crypto.createDecipher` with `crypto.createCipheriv` and `crypto.createDecipheriv`.
-  - Added explicit IV generation and prepending to the encrypted payload so decryption remains compatible and secure.
+- **Environment:** `ubuntu-latest` (Node 22)
+- **Failed Step:** Encryption logic in `src/cryptoUtils.js`
+- **Error from Log:**
+  ```
+  Error: crypto.createCipher is not a function
+  ```
+- **Failure Type:** Runtime version compatibility
+- **Resolution:**
+  - Replaced the deprecated `crypto.createCipher()` and `crypto.createDecipher()` APIs with the supported `crypto.createCipheriv()` and `crypto.createDecipheriv()` methods.
+  - Introduced explicit IV generation and stored the IV alongside the encrypted data to maintain successful encryption and decryption while remaining compatible with Node 22.
 
 ---
 
-## Workflow Update
+# Workflow Configuration Changes
 
-- File: `.github/workflows/ci.yml`
-- Change: Set `fail-fast: false` and added experimental `node: 24` on `ubuntu-latest`.
-- Rationale: A compatibility matrix must complete all combinations so failures are visible, and Node 24 is evaluated without blocking production delivery.
+**File Updated:** `.github/workflows/ci.yml`
+
+### Changes Made
+
+- Set:
+  ```yaml
+  fail-fast: false
+  ```
+  so every matrix job runs to completion, making it easier to identify all failing environments instead of stopping after the first failure.
+
+- Added an experimental matrix entry for **Node.js 24** using:
+  ```yaml
+  experimental: true
+  ```
+  and configured the job with:
+  ```yaml
+  continue-on-error: ${{ matrix.experimental }}
+  ```
+  This allows testing compatibility with upcoming Node.js releases without causing the overall workflow to fail.
+
+### Reasoning
+
+Production environments (Node 18, 20, and 22) are required to pass successfully on both Ubuntu and Windows. Node 24 is included only as an experimental runtime so that compatibility can be monitored while keeping the CI pipeline stable.
